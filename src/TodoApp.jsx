@@ -1,103 +1,138 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import TodoItem from './TodoItem';
-import { DragDropContext, Droppable, Draggable } from 'react-beautiful-dnd';
+import api from './api'; // Axios instance
+import './Checkbox.css'; // Custom checkbox styling
 
 function TodoApp() {
   const [todos, setTodos] = useState([]);
   const [input, setInput] = useState('');
   const [filter, setFilter] = useState('all');
+  const [search, setSearch] = useState('');
 
-  const filteredTodos = todos.filter(todo => {
-    if (filter === 'active') return !todo.completed;
-    if (filter === 'completed') return todo.completed;
-    return true;
-  });
+  // Fetch todos on mount
+  useEffect(() => {
+    api.get('/todos')
+      .then((res) => setTodos(res.data))
+      .catch((err) => console.error('Failed to load todos:', err));
+  }, []);
 
+  // Add new todo
   const handleAdd = () => {
     if (!input.trim()) return;
-    setTodos(prev => [
-      ...prev,
-      { id: Date.now().toString(), text: input.trim(), completed: false },
-    ]);
-    setInput('');
+    api.post('/todos', { text: input }).then((res) => {
+      setTodos((prev) => [res.data, ...prev]);
+      setInput('');
+    });
   };
 
+  // Toggle completed status
   const handleToggle = (id) => {
-    setTodos(prev => prev.map(todo =>
-      todo.id === id ? { ...todo, completed: !todo.completed } : todo
-    ));
+    api.patch(`/todos/${id}`).then(() => {
+      setTodos((prev) =>
+        prev.map((todo) =>
+          todo.id === id ? { ...todo, completed: !todo.completed } : todo
+        )
+      );
+    });
   };
 
+  // Delete a todo
   const handleDelete = (id) => {
-    setTodos(prev => prev.filter(todo => todo.id !== id));
+    api.delete(`/todos/${id}`).then(() => {
+      setTodos((prev) => prev.filter((todo) => todo.id !== id));
+    });
   };
 
+  // Clear all completed todos
   const handleClearCompleted = () => {
-    setTodos(prev => prev.filter(todo => !todo.completed));
+    api.delete('/todos').then(() => {
+      setTodos((prev) => prev.filter((todo) => !todo.completed));
+    });
   };
 
-  const handleDragEnd = (result) => {
-    if (!result.destination) return;
-    const items = Array.from(todos);
-    const [moved] = items.splice(result.source.index, 1);
-    items.splice(result.destination.index, 0, moved);
-    setTodos(items);
-  };
+  // Filter and search
+  const filteredTodos = todos
+    .filter((todo) => {
+      if (filter === 'active') return !todo.completed;
+      if (filter === 'completed') return todo.completed;
+      return true;
+    })
+    .filter((todo) => {
+      const content = todo.text || todo.title || '';
+      return content.toLowerCase().includes(search.toLowerCase());
+    });
 
   return (
-    <div style={{ maxWidth: 500, margin: 'auto', padding: 20 }}>
-      <h2>Todo List</h2>
-      <input
-        value={input}
-        onChange={(e) => setInput(e.target.value)}
-        onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-        placeholder="Add todo"
-        style={{ width: '100%', padding: 10 }}
-      />
+    <div className="container mt-5">
+      <h2 className="text-center mb-4">Cornfield Todo List</h2>
 
-      <div style={{ marginTop: 20 }}>
-        <button onClick={() => setFilter('all')}>All</button>
-        <button onClick={() => setFilter('active')}>Active</button>
-        <button onClick={() => setFilter('completed')}>Completed</button>
+      {/* Add new todo */}
+      <div className="input-group mb-3">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder="Add a new todo"
+          className="form-control"
+        />
+        <button className="btn btn-primary" onClick={handleAdd}>
+          Add
+        </button>
       </div>
 
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="todos">
-          {(provided) => (
-            <ul {...provided.droppableProps} ref={provided.innerRef} style={{ padding: 0 }}>
-              {filteredTodos.map((todo, index) => (
-                <Draggable key={todo.id} draggableId={todo.id} index={index}>
-                  {(provided) => (
-                    <li
-                      ref={provided.innerRef}
-                      {...provided.draggableProps}
-                      {...provided.dragHandleProps}
-                      style={{
-                        ...provided.draggableProps.style,
-                        listStyle: 'none',
-                        margin: '10px 0',
-                        padding: '10px',
-                        border: '1px solid #ccc',
-                        borderRadius: '4px',
-                        background: '#f9f9f9',
-                      }}
-                    >
-                      <TodoItem
-                        todo={todo}
-                        onToggle={handleToggle}
-                        onDelete={handleDelete}
-                      />
-                    </li>
-                  )}
-                </Draggable>
-              ))}
-              {provided.placeholder}
-            </ul>
-          )}
-        </Droppable>
-      </DragDropContext>
 
-      <button onClick={handleClearCompleted} style={{ marginTop: 20 }}>
+      {/* Filters */}
+      <div className="btn-group mb-3">
+        <button
+          className={`btn btn-sm ${filter === 'all' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+          onClick={() => setFilter('all')}
+        >
+          All
+        </button>
+        <button
+          className={`btn btn-sm ${filter === 'active' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+          onClick={() => setFilter('active')}
+        >
+          Active
+        </button>
+        <button
+          className={`btn btn-sm ${filter === 'completed' ? 'btn-secondary' : 'btn-outline-secondary'}`}
+          onClick={() => setFilter('completed')}
+        >
+          Completed
+        </button>
+      </div>
+
+      {/* Search field */}
+      <div className="mb-3">
+        <input
+          type="text"
+          className="form-control"
+          placeholder="Search todos..."
+          style={{ border: 'none', boxShadow: 'none' }}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Todo list */}
+      <div className="list-group">
+        {filteredTodos.map((todo) => (
+          <div key={todo.id} className="list-group-item">
+            <TodoItem
+              todo={todo}
+              onToggle={handleToggle}
+              onDelete={handleDelete}
+            />
+          </div>
+        ))}
+        {filteredTodos.length === 0 && (
+          <div className="text-muted text-center py-3">No todos found.</div>
+        )}
+      </div>
+
+      {/* Clear completed */}
+      <button className="btn btn-danger mt-3" onClick={handleClearCompleted}>
         Clear Completed
       </button>
     </div>

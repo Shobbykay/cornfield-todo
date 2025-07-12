@@ -1,0 +1,26 @@
+.custom-radio {
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid #6c757d;
+    border-radius: 50%;
+    position: relative;
+    transition: background 0.2s ease;
+  }
+  
+  .custom-radio.checked {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+  }
+  
+  .custom-radio.checked::after {
+    content: '';
+    position: absolute;
+    top: 4px;
+    left: 4px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background-color: white;
+  }
+  
